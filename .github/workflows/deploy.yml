@@ -1,0 +1,61 @@
+# Nom du workflow GitHub Actions
+name: Deploy React App
+
+# Déclencheur du workflow sur un push vers la branche principale
+on:
+  push:
+    branches:
+      - main
+
+# Définition des jobs à exécuter dans le workflow
+jobs:
+  deploy:
+    # Spécifie l'environnement dans lequel le job s'exécutera
+    runs-on: ubuntu-latest
+
+    # Liste des étapes à exécuter dans le job
+    steps:
+    # Étape pour vérifier le dépôt
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    # Étape pour configurer Node.js
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '16'
+
+    # Étape pour installer les dépendances du projet
+    - name: Install dependencies
+      run: npm install
+
+    # Étape pour exécuter les tests
+    - name: Run tests
+      run: npm test -- --watchAll=false
+
+    # Étape pour construire le projet, exécutée seulement si les tests réussissent
+    - name: Build project
+      if: success()
+      run: npm run build
+
+    # Étape pour configurer SSH
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    # Étape pour déployer sur les serveurs, exécutée seulement si la construction réussit
+    - name: Deploy to servers
+      if: success()
+      env:
+        SSH_USER: ${{ secrets.SSH_USER }}
+        FRONTEND_HOSTS: ${{ secrets.FRONTEND_HOSTS }}
+      run: |
+        # Boucle pour déployer sur chaque serveur listé dans FRONTEND_HOSTS
+        for host in $(echo $FRONTEND_HOSTS | tr "," "\n"); do
+          echo "Deploying to $host"
+          # Copie des fichiers construits vers le serveur
+          scp -r -o StrictHostKeyChecking=no build/* $SSH_USER@$host:/var/www/html/
+          # Redémarrage du service nginx sur le serveur
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$host 'sudo systemctl restart nginx'
+        done
