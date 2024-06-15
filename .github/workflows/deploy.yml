@@ -38,6 +38,10 @@ jobs:
       if: success()
       run: npm run build
 
+    # Étape pour voir si la clé est bien chargée dans l'agent SSH
+    - name: List SSH keys
+      run: ssh-add -L
+
     # Étape pour configurer SSH
     - name: Setup SSH
       uses: webfactory/ssh-agent@v0.5.3
