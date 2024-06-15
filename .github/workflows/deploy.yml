@@ -46,7 +46,9 @@ jobs:
 
     # Étape pour voir si la clé est bien chargée dans l'agent SSH
     - name: List SSH keys
-      run: ssh-add -L
+      run: |
+        echo "Listing currently loaded SSH keys:"
+        ssh-add -L
 
     # Étape pour déployer sur les serveurs, exécutée seulement si la construction réussit
     - name: Deploy to servers
@@ -55,11 +57,11 @@ jobs:
         SSH_USER: ${{ secrets.SSH_USER }}
         FRONTEND_HOSTS: ${{ secrets.FRONTEND_HOSTS }}
       run: |
-        # Boucle pour déployer sur chaque serveur listé dans FRONTEND_HOSTS
+        # Boucle pour déployer sur chaque serveur listé dans FRONTEND HOSTS
         for host in $(echo $FRONTEND_HOSTS | tr "," "\n"); do
           echo "Deploying to $host"
-          # Copie des fichiers construits vers le serveur
+          echo "Copying built files to the server $host"
           scp -r -o StrictHostKeyChecking=no build/* $SSH_USER@$host:/var/www/html/
-          # Redémarrage du service nginx sur le serveur
+          echo "Restarting nginx on $host"
           ssh -o StrictHostKeyChecking=no $SSH_USER@$host 'sudo systemctl restart nginx'
         done
